@@ -1,3 +1,5 @@
+![Banner](banner.png)
+
 # net-gre-analyzer
 Analyzes GRE (Generic Routing Encapsulation) packets to extract tunnel information and encapsulated protocols. Can be used to identify tunnel endpoints and analyze traffic within GRE tunnels. - Focused on Basic network operations
 
