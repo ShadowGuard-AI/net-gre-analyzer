@@ -39,6 +39,7 @@ def analyze_gre_packet(packet_data, output_file=None):
             logging.warning("Packet too short to contain a complete GRE header.")
             return
 
+        # My format reads eight bytes as flags, protocol, and one combined word. That combined word is never split back into checksum, key, or sequence values below, so those fields affect only the header size math, never the printed result.
         gre_header = struct.unpack(GRE_HEADER_FORMAT, packet_data[:gre_header_size])
         flags, protocol_type, checksum_key_seq = gre_header
 
@@ -55,6 +56,7 @@ def analyze_gre_packet(packet_data, output_file=None):
 
         # Key Present
         key = None
+        # I add four bytes per set flag in key, sequence, checksum order. The wire order is checksum, key, sequence, but since I only use the total to find where the payload starts, the order I add them in does not change the offset.
         if k_bit:
             header_size += 4
 
@@ -87,6 +89,7 @@ def analyze_gre_packet(packet_data, output_file=None):
             logging.warning(f"Unknown protocol type: {protocol_type}")
             return
 
+        # This looks up a service name for what is really an EtherType, which is the wrong table entirely. Most values miss and raise OSError, which the outer handler turns into a generic error line for a packet that parsed fine up to here.
         protocol_name = socket.getservbyport(protocol, 'tcp') if protocol in range(0, 65536) else "Unknown"
         
         # Log the information
@@ -141,6 +144,7 @@ def read_pcap(pcap_file, limit=None, output_file=None):
                     break  # End of file
 
                 # Unpack packet header - Assuming standard PCAP format
+                # I unpack every packet header as little endian even though two of the accepted magic values above mark big endian and nanosecond files. Those captures get a garbage captured_length and the read that follows desynchronises from the real packet boundaries.
                 timestamp_seconds, timestamp_microseconds, captured_length, original_length = struct.unpack("<IIII", packet_header)
 
                 # Read Packet Data
@@ -174,6 +178,7 @@ def read_pcap(pcap_file, limit=None, output_file=None):
                 else:
                     logging.debug("Not an Ethernet/IPv4 packet.")
 
+                # The counter runs for every packet in the file, GRE or not, so the limit the operator sets is a limit on frames examined, not on GRE packets analysed. On a general capture the run can stop before it reaches much GRE at all.
                 packet_count += 1
                 if limit and packet_count >= limit:
                     logging.info(f"Analysis limit reached ({limit} packets).")
