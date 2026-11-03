@@ -81,16 +81,14 @@ def analyze_gre_packet(packet_data, output_file=None):
 
         encapsulated_data = packet_data[header_size:]
 
-        # Determine the encapsulated protocol based on the protocol type
-        protocol = None
-        try:
-            protocol = socket.ntohs(protocol_type)  # Convert to host byte order
-        except OverflowError:
-            logging.warning(f"Unknown protocol type: {protocol_type}")
-            return
-
-        # This looks up a service name for what is really an EtherType, which is the wrong table entirely. Most values miss and raise OSError, which the outer handler turns into a generic error line for a packet that parsed fine up to here.
-        protocol_name = socket.getservbyport(protocol, 'tcp') if protocol in range(0, 65536) else "Unknown"
+        # The protocol type is an EtherType, already in host order from
+        # the ! unpack above, so no ntohs call and no service-table
+        # lookup: getservbyport on an EtherType errored for most values.
+        # Known EtherTypes are named here; anything else is Unknown.
+        ETHERTYPE_NAMES = {0x0800: "IPv4", 0x86DD: "IPv6", 0x0806: "ARP",
+                           0x8847: "MPLS unicast", 0x8848: "MPLS multicast",
+                           0x8100: "802.1Q VLAN", 0x88CC: "LLDP"}
+        protocol_name = ETHERTYPE_NAMES.get(protocol_type, "Unknown")
         
         # Log the information
         log_message = (
